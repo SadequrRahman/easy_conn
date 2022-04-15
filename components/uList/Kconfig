@@ -1,0 +1,7 @@
+menu "uList Configuration"
+ config Dynamic_alloc
+  bool "Enable Dynamic Allocation"
+  default n
+  help
+   Enable or disable Dynamic allocation.
+endmenu 

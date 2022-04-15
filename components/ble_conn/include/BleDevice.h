@@ -50,7 +50,7 @@ typedef void(*event_handler)(ble_event_t *param);
 
 
 // init the ble device with device name
-void BleDevice_init(char* pName, bleDevice_config_t* config);
+void BleDevice_init(bleDevice_config_t* config);
 bleDevice_config_t* BleDevice_getDefaultConfig(void);
 
 

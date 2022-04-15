@@ -7,31 +7,29 @@
  */
 
 
-#include "include/BleDevice.h"
-#include "include/BleProfiles.h"
+#include "BleDevice.h"
+#include "BleProfiles.h"
 
-static const char *TAG = "BleDevice";
+static const char *TAG = __FILE__;
 
-bleDevice_handler_t *mDeviceHandler = (void*)0;
+bleDevice_handler_t *mDeviceHandler = NULL;
 
-//
-static void gap_event_handler(esp_gap_ble_cb_event_t event,
-		esp_ble_gap_cb_param_t *param);
-static void gatts_event_handler(esp_gatts_cb_event_t event,
-		esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
+// private function
+static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
+static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 
-static uint8_t defaultAdvUUID128[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x89, 0x78, 0x67, 0x56, 0x45, 0x34, 0x23, 0x12 };
-//{0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0x09, 0x18, 0x00, 0x00 };
+static uint8_t defaultAdvUUID128[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x89, 0x78, 0x67, 0x56, \
+0x45, 0x34, 0x23, 0x12 };
 
 
 
-void BleDevice_init(char *pName, bleDevice_config_t *config)
+void BleDevice_init(bleDevice_config_t *config)
 {
 	if(!mDeviceHandler)
 	{
 		mDeviceHandler = (bleDevice_handler_t*) malloc(sizeof(bleDevice_handler_t));
 		memset((void*)mDeviceHandler, 0, sizeof(bleDevice_handler_t));
-		mDeviceHandler->mName = pName;
+		mDeviceHandler->mName = CONFIG_BLE_CONN_NAME;
 		mDeviceHandler->mProfileCount = 0;
 		mDeviceHandler->mProfileList =  uList_createList();
 		mDeviceHandler->mConfig = config;
@@ -179,8 +177,8 @@ void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 	switch (event) 
 	{
 		case ESP_GAP_BLE_ADV_DATA_SET_COMPLETE_EVT:
-			esp_ble_gap_start_advertising(&mDeviceHandler->mConfig->mAdvParams);
 			esp_ble_gap_set_device_name(mDeviceHandler->mName);
+			esp_ble_gap_start_advertising(&mDeviceHandler->mConfig->mAdvParams);
 			break;
 		case ESP_GAP_BLE_SCAN_RSP_DATA_SET_COMPLETE_EVT:
 			ESP_LOGI(TAG, "ESP_GAP_BLE_SCAN_RSP_DATA_SET_COMPLETE_EVT");

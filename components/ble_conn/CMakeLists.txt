@@ -3,6 +3,6 @@ set(COMPONENT_REQUIRES uList bt)
 set(COMPONENT_PRIV_REQUIRES )
 
 set(COMPONENT_SRCS "BleDevice.c BleManager.c BleProfiles.c")
-set(COMPONENT_ADD_INCLUDEDIRS "")
+set(COMPONENT_ADD_INCLUDEDIRS "include")
 
 register_component()

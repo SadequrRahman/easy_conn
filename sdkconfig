@@ -1392,7 +1392,7 @@ CONFIG_WPA_MBEDTLS_CRYPTO=y
 #
 # ble_conn Configuration
 #
-CONFIG_Device_name="ESP32_BLE"
+CONFIG_BLE_CONN_NAME="Rabby_Ble"
 # end of ble_conn Configuration
 
 #

@@ -1,5 +1,5 @@
 menu "ble_conn Configuration"
- config Device_name
+ config BLE_CONN_NAME
   string "Device name that appare in ble search"
   default "ESP32_BLE"
   help

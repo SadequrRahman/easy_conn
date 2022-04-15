@@ -49,9 +49,12 @@ typedef void(*event_handler)(ble_event_t *param);
 
 
 
-// init the ble device with device name
+// init the ble device (device name will be set by component menuconfig)
 void BleDevice_init(bleDevice_config_t* config);
 bleDevice_config_t* BleDevice_getDefaultConfig(void);
+
+// get device name. 
+const char* BleDevice_getDeviceName(void);
 
 
 // get the ble device handler. this will use to add profiles

@@ -132,7 +132,18 @@ bleDevice_config_t* BleDevice_getDefaultConfig(void)
 
 uint8_t BleDevice_getProfileCount(void)
 {
-	return mDeviceHandler->mProfileCount;
+	uint8_t ret = 0;
+	if(mDeviceHandler)
+	 	ret = mDeviceHandler->mProfileCount;
+	return ret;
+}
+
+const char* BleDevice_getDeviceName(void)
+{
+	char* ret = NULL;
+	if(mDeviceHandler)
+		ret = mDeviceHandler->mName;
+	return (const char*) ret;
 }
 
 void BleDevice_addProfile(ble_profile_t* pProfile)
@@ -152,17 +163,14 @@ void BleDevice_activateProfiles(void)
 	{
 		ble_profile_t* profile = (void*)0;
 		uNode_t * profileNode = mDeviceHandler->mProfileList->tail;
-		while (profileNode)
-		{
+		while (profileNode){
 			/* code */
 			profile = (ble_profile_t*)profileNode->value;
 			esp_err_t ret = esp_ble_gatts_app_register(profile->mId);
-			if (ret)
-			{
+			if (ret){
 				ESP_LOGE(TAG, "gatts app register error, error code = %x", ret);
 			}
-			else
-			{
+			else{
 				ESP_LOGI(TAG, "gatts app registered. id: %d", profile->mId);
 			}
 			profileNode = profileNode->nextNode;
@@ -269,8 +277,9 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 			ESP_LOGI(TAG, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
 			bool isFound = false;
 			void* value = NULL;
-			uint16_t len = 0;
+			uint16_t len;
 			ble_eventParam_t mParam;
+			(void) mParam;
 			ITERATE_LIST(mDeviceHandler->mProfileList, value, len, 
 			ESP_LOGI(TAG, "Profile iterator\n");
 			ble_profile_t* profile = (ble_profile_t*)value;
@@ -442,8 +451,9 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 			                  param->add_char.status, param->add_char.attr_handle,
 			                  param->add_char.service_handle);
 			void* value = NULL;
-			uint16_t len = 0;
+			uint16_t len;
 			ble_eventParam_t mParam;
+			(void) mParam;
 			ITERATE_LIST(mDeviceHandler->mProfileList, value, len, 
 			ble_profile_t* profile = (ble_profile_t*)value;
 				if(profile->mGatt_if == gatts_if)

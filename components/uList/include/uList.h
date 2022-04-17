@@ -57,15 +57,15 @@ typedef struct
    uint16_t  numItems;
 }uList_t;
 
-#define ITERATE_LIST(list, value, len, code)                \
+#define ITERATE_LIST(list, value, len, code)    \
 do {                                            \
     if (list) {                                 \
        uNode_t *node = list->tail;              \
        while (node)                             \
-      {  \
+      {                                         \
          value = node->value;                   \
-         len = node->len;\
-         code;          \
+         len = node->len;                       \
+         code;                                  \
          node = node->nextNode;                \
       }                                         \
     }                                           \

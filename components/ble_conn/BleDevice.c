@@ -26,7 +26,7 @@ static uint8_t defaultAdvUUID128[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 static volatile uint16_t _mHandlerContainer = 0;
 static volatile uint8_t isJobDone = 0;
 static const char *TAG = "BleDevice";
-bleDevice_handler_t *mDeviceHandler = NULL;
+static bleDevice_handler_t *mDeviceHandler = NULL;
 
 
 
@@ -167,37 +167,29 @@ void BleDevice_addProfile(ble_profile_t* pProfile)
 
 void BleDevice_activateProfiles(void)
 {
-	ESP_LOGI("activateProfiles", "start\n\n");
 	if(mDeviceHandler)
  	{
 		void* value = NULL;
 		uint16_t len;
 		ITERATE_LIST(mDeviceHandler->mProfileList, value, len, 
-			ESP_LOGI(TAG, "profile iterator");
 			isJobDone = 0;
 			ble_profile_t* profile = (ble_profile_t*)value;
 			esp_ble_gatts_app_register(profile->mId);
 			_wait(isJobDone);
 			profile->mGatt_if = _mHandlerContainer;
 		ITERATE_LIST(profile->mServiceList, value, len,
-			ESP_LOGI(TAG, "service iterator");
 			isJobDone = 0;
 			ble_service_t* service = (ble_service_t*)value;
-			ESP_LOGI(TAG, "Adding services to profile %d", profile->mId );
 			esp_ble_gatts_create_service(profile->mGatt_if, service->mService_id, service->mNumHandle);
 			_wait(isJobDone);
 			service->mHandle = _mHandlerContainer;
-			ESP_LOGI(TAG, "Services handler %d", service->mHandle );
 		ITERATE_LIST(service->mCharList, value, len,
-				ESP_LOGI(TAG, "character iterator");
 				isJobDone = 0;
 				ble_char_t* characteristic = (ble_char_t*)value;
 				esp_ble_gatts_add_char(service->mHandle, characteristic->mChar_uuid, characteristic->mPerm, characteristic->mProperty,characteristic->mAtt, &characteristic->mRsp);
 				_wait(isJobDone);
 				characteristic->mhandle = _mHandlerContainer;
-				ESP_LOGI(TAG, "characteristic handler %d", characteristic->mhandle );
-		ITERATE_LIST(characteristic->mDescrList, value, len, 
-				ESP_LOGI(TAG, "descrp iterator");
+		ITERATE_LIST(characteristic->mDescrList, value, len,
 				isJobDone = 0;
 				ble_descrp_t* descrp = (ble_descrp_t*)value;
 				esp_ble_gatts_add_char_descr( service->mHandle, descrp->mDescr_uuid, descrp->mPerm, descrp->mAtt, &descrp->mRsp);
@@ -208,7 +200,6 @@ void BleDevice_activateProfiles(void)
 		);
 		);
 	 }
-	 ESP_LOGI("activateProfiles", "completed\n\n");
 }
 
 

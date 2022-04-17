@@ -192,6 +192,7 @@ void BleDevice_activateProfiles(void)
 		ITERATE_LIST(characteristic->mDescrList, value, len,
 				isJobDone = 0;
 				ble_descrp_t* descrp = (ble_descrp_t*)value;
+				descrp->mAssociate_char_handle = characteristic->mhandle;
 				esp_ble_gatts_add_char_descr( service->mHandle, descrp->mDescr_uuid, descrp->mPerm, descrp->mAtt, &descrp->mRsp);
 				_wait(isJobDone);
 				descrp->mhandle = _mHandlerContainer;
@@ -321,7 +322,44 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 			);
 			break;
 		case ESP_GATTS_WRITE_EVT:			/*!< When gatt client request write operation, the event comes */
-			ESP_LOGI(TAG, "ESP_GATTS_WRITE_EVT");		
+			ESP_LOGI(TAG, "ESP_GATTS_WRITE_EVT");
+			if(mDeviceHandler)
+			{
+				bool isFound = false;
+				void* value = NULL;
+				uint16_t len;
+				ITERATE_LIST(mDeviceHandler->mProfileList, value, len, 
+					ble_profile_t* profile = (ble_profile_t*)value;
+					if(profile->mGatt_if == gatts_if)
+					{
+						ITERATE_LIST(profile->mServiceList, value, len,
+							ble_service_t* service = (ble_service_t*)value;
+							ITERATE_LIST(service->mCharList, value, len,
+								ble_char_t* characteristic = (ble_char_t*)value;
+								if(characteristic->mhandle == param->write.handle)
+								{
+									if(characteristic->mWriteEvent && characteristic->mRsp.auto_rsp == ESP_GATT_RSP_BY_APP)
+										characteristic->mWriteEvent(param->write.value, param->write.len);
+									isFound = true;
+									break;
+								}
+								ITERATE_LIST(characteristic->mDescrList, value, len,
+									ble_descrp_t* descrp = (ble_descrp_t*)value;
+									if(descrp->mhandle == param->write.handle)
+									{
+										if(descrp->mWriteEvent)
+											descrp->mWriteEvent(param->write.value, param->write.len);
+										isFound = true;
+										break;
+									}
+								);
+							);
+						if (isFound) break;
+						);
+					}
+				if (isFound) break;
+				);
+			}
 			break;
 		case ESP_GATTS_EXEC_WRITE_EVT:                 /*!< When gatt client request execute write, the event comes */
 			ESP_LOGI(TAG, "ESP_GATTS_EXEC_WRITE_EVT");

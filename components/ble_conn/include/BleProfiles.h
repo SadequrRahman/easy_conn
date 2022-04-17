@@ -25,6 +25,13 @@
 typedef void(*writeEvent_t)(esp_ble_gatts_cb_param_t* param);
 typedef void(*readEvent_t)(esp_ble_gatts_cb_param_t* param);
 
+typedef struct 
+{
+	uint8_t *prepare_buf;
+	uint16_t prepare_len;
+}ble_prepare_t;
+
+
 //profiles
 typedef struct {
 	esp_gatts_cb_t mGatts_cb;
@@ -52,7 +59,7 @@ typedef struct {
 	writeEvent_t mWriteEvent;
 	readEvent_t mReadEvent;
 	uint16_t mAssociateService_handle;
-	uint32_t mTrans_id;
+	ble_prepare_t mPrepareObj;
 } ble_char_t;
 
 typedef struct {
@@ -64,7 +71,7 @@ typedef struct {
 	writeEvent_t mWriteEvent;
 	readEvent_t mReadEvent;
 	uint16_t mAssociateChar_handle;
-	uint32_t mTrans_id;
+	ble_prepare_t mPrepareObj;
 } ble_descrp_t;
 
 
@@ -85,5 +92,9 @@ void BleProfiles_setDescriptionPermission(ble_descrp_t *ds, uint16_t pem);
 void BleProfile_setDescriptionValue(ble_descrp_t *ds, uint8_t *value, uint8_t len, uint8_t maxLen);
 void BleProfiles_addDescription(ble_char_t *charactersitic, ble_descrp_t *ds);
 void BleProfiles_setReadCallback(ble_char_t *charactersitic, readEvent_t callback);
+
+
+void BleProfile_prepareLongRsp(esp_gatt_rsp_t *rsp, uint8_t *value, uint16_t offset);
+
 
 #endif /* INC_BLEPROFILES_H_ */

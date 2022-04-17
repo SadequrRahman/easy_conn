@@ -10,7 +10,7 @@
 #include "BleDevice.h"
 #include "BleProfiles.h"
 
-static const char *TAG = __FILE__;
+static const char *TAG = "BleDevice";
 
 bleDevice_handler_t *mDeviceHandler = NULL;
 
@@ -18,8 +18,7 @@ bleDevice_handler_t *mDeviceHandler = NULL;
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
 static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 
-static uint8_t defaultAdvUUID128[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x89, 0x78, 0x67, 0x56, \
-0x45, 0x34, 0x23, 0x12 };
+static uint8_t defaultAdvUUID128[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x89, 0x78, 0x67, 0x56, 0x45, 0x34, 0x23, 0x12 };
 
 
 
@@ -292,7 +291,7 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 							ITERATE_LIST(service->mCharList, value, len,
 								ESP_LOGI(TAG, "Characteristics iterator\n");
 								ble_char_t* characteristic = (ble_char_t*)value;
-								if(characteristic->mChar_handle == param->read.handle)
+								if(characteristic->mhandle == param->read.handle)
 								{
 									ESP_LOGI(TAG, "Found Char with proper handler\n");
 									mParam.mConn_id = param->read.conn_id;
@@ -307,7 +306,7 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 								ITERATE_LIST(characteristic->mDescrList, value, len, 
 									ble_descrp_t* descrp = (ble_descrp_t*)value;
 									ESP_LOGI(TAG, "Description iterator\n");
-									if(descrp->mDescr_handle == param->read.handle)
+									if(descrp->mhandle == param->read.handle)
 									{
 										ESP_LOGI(TAG, "Found Description\n");
 										isFound = true;
@@ -360,15 +359,14 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 								(void*)&param->create.service_id.id.uuid.uuid,
 								service->mService_id->id.uuid.len) == 0 )
 						{
-							service->mServiceHandle = param->create.service_handle;
-							ESP_LOGI(TAG, "\r\nStart service: %d\r\n", service->mService_id->id.inst_id);
-							esp_ble_gatts_start_service(service->mServiceHandle);
+							service->mHandle = param->create.service_handle;
+							esp_ble_gatts_start_service(service->mHandle);
 							ble_char_t* ch = (void*)0;
 							uNode_t * charNode = service->mCharList->tail;
 							while(charNode)
 							{
 								ch = (ble_char_t*)charNode->value;
-								esp_ble_gatts_add_char(service->mServiceHandle, ch->mChar_uuid, ch->mPerm, ch->mProperty,ch->mAtt, &ch->mRsp);
+								esp_ble_gatts_add_char(service->mHandle, ch->mChar_uuid, ch->mPerm, ch->mProperty,ch->mAtt, &ch->mRsp);
 								charNode = charNode->nextNode;
 							}
 						}
@@ -406,7 +404,7 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 					{
 						/* code */
 						service = (ble_service_t*)serviceNode->value;
-						if(service->mServiceHandle == param->add_char.service_handle)
+						if(service->mHandle == param->add_char.service_handle)
 						{
 							ble_char_t* characteristic = (void*)0;
 							uNode_t * charNode = service->mCharList->tail;
@@ -418,15 +416,15 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 									(void*)&param->add_char.char_uuid.uuid,
 									characteristic->mChar_uuid->len) == 0 )
 								{
-									characteristic->mChar_handle = param->add_char.attr_handle;
-									ESP_LOGI(TAG, "Found char.Assigned handle id: %d\r\n", characteristic->mChar_handle);
+									characteristic->mhandle = param->add_char.attr_handle;
+									ESP_LOGI(TAG, "Found char.Assigned handle id: %d\r\n", characteristic->mhandle);
 									ble_descrp_t* descrp = (void*)0;
 									uNode_t *descrpNode = characteristic->mDescrList->tail;
 									while (descrpNode)
 									{
 										/* code */
 										descrp = (ble_descrp_t*) descrpNode->value;
-										esp_err_t add_descr_ret = esp_ble_gatts_add_char_descr( service->mServiceHandle,  descrp->mDescr_uuid,
+										esp_err_t add_descr_ret = esp_ble_gatts_add_char_descr( service->mHandle,  descrp->mDescr_uuid,
 										            											descrp->mPerm, descrp->mAtt, &descrp->mRsp);
 										 if (add_descr_ret)
 										 {
@@ -448,17 +446,14 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 		case ESP_GATTS_ADD_CHAR_DESCR_EVT:            /*!< When add descriptor complete, the event comes */
 		{
 			ESP_LOGI(TAG, "ADD_DESCR_EVT, status %d, attr_handle %d, service_handle %d\n",
-			                  param->add_char.status, param->add_char.attr_handle,
-			                  param->add_char.service_handle);
+			                  param->add_char_descr.status, param->add_char_descr.attr_handle,
+			                  param->add_char_descr.service_handle);
 			void* value = NULL;
 			uint16_t len;
-			ble_eventParam_t mParam;
-			(void) mParam;
 			ITERATE_LIST(mDeviceHandler->mProfileList, value, len, 
 			ble_profile_t* profile = (ble_profile_t*)value;
 				if(profile->mGatt_if == gatts_if)
 				{
-					mParam.mGatts_if = gatts_if;
 					ITERATE_LIST(profile->mServiceList, value, len, 
 						ble_service_t* service = (ble_service_t*)value;
 							ITERATE_LIST(service->mCharList, value, len,
@@ -466,11 +461,11 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 								ITERATE_LIST(characteristic->mDescrList, value, len, 
 									ble_descrp_t* descrp = (ble_descrp_t*)value;
 									if(memcmp((void*)&descrp->mDescr_uuid->uuid,
-									(void*)&param->add_char.char_uuid.uuid,
+									(void*)&param->add_char_descr.descr_uuid.uuid,
 									descrp->mDescr_uuid->len) == 0 )
 									{
 									   ESP_LOGI(TAG, "Found Description\n");
-									   descrp->mDescr_handle = param->add_char.attr_handle;
+									   descrp->mhandle = param->add_char_descr.attr_handle;
 									}
 									
 								);

@@ -9,16 +9,25 @@
 
 #include "BleDevice.h"
 #include "BleProfiles.h"
+#include "freertos/task.h"
 
-static const char *TAG = "BleDevice";
 
-bleDevice_handler_t *mDeviceHandler = NULL;
+#define _wait(flag)	do{											\
+						vTaskDelay( 50 / portTICK_PERIOD_MS);	\
+					}while(!flag)									
+
 
 // private function
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
 static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
-
 static uint8_t defaultAdvUUID128[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x89, 0x78, 0x67, 0x56, 0x45, 0x34, 0x23, 0x12 };
+
+// private variable 
+static volatile uint16_t _mHandlerContainer = 0;
+static volatile uint8_t isJobDone = 0;
+static const char *TAG = "BleDevice";
+bleDevice_handler_t *mDeviceHandler = NULL;
+
 
 
 
@@ -158,23 +167,48 @@ void BleDevice_addProfile(ble_profile_t* pProfile)
 
 void BleDevice_activateProfiles(void)
 {
+	ESP_LOGI("activateProfiles", "start\n\n");
 	if(mDeviceHandler)
-	{
-		ble_profile_t* profile = (void*)0;
-		uNode_t * profileNode = mDeviceHandler->mProfileList->tail;
-		while (profileNode){
-			/* code */
-			profile = (ble_profile_t*)profileNode->value;
-			esp_err_t ret = esp_ble_gatts_app_register(profile->mId);
-			if (ret){
-				ESP_LOGE(TAG, "gatts app register error, error code = %x", ret);
-			}
-			else{
-				ESP_LOGI(TAG, "gatts app registered. id: %d", profile->mId);
-			}
-			profileNode = profileNode->nextNode;
-		}
-	}
+ 	{
+		void* value = NULL;
+		uint16_t len;
+		ITERATE_LIST(mDeviceHandler->mProfileList, value, len, 
+			ESP_LOGI(TAG, "profile iterator");
+			isJobDone = 0;
+			ble_profile_t* profile = (ble_profile_t*)value;
+			esp_ble_gatts_app_register(profile->mId);
+			_wait(isJobDone);
+			profile->mGatt_if = _mHandlerContainer;
+		ITERATE_LIST(profile->mServiceList, value, len,
+			ESP_LOGI(TAG, "service iterator");
+			isJobDone = 0;
+			ble_service_t* service = (ble_service_t*)value;
+			ESP_LOGI(TAG, "Adding services to profile %d", profile->mId );
+			esp_ble_gatts_create_service(profile->mGatt_if, service->mService_id, service->mNumHandle);
+			_wait(isJobDone);
+			service->mHandle = _mHandlerContainer;
+			ESP_LOGI(TAG, "Services handler %d", service->mHandle );
+		ITERATE_LIST(service->mCharList, value, len,
+				ESP_LOGI(TAG, "character iterator");
+				isJobDone = 0;
+				ble_char_t* characteristic = (ble_char_t*)value;
+				esp_ble_gatts_add_char(service->mHandle, characteristic->mChar_uuid, characteristic->mPerm, characteristic->mProperty,characteristic->mAtt, &characteristic->mRsp);
+				_wait(isJobDone);
+				characteristic->mhandle = _mHandlerContainer;
+				ESP_LOGI(TAG, "characteristic handler %d", characteristic->mhandle );
+		ITERATE_LIST(characteristic->mDescrList, value, len, 
+				ESP_LOGI(TAG, "descrp iterator");
+				isJobDone = 0;
+				ble_descrp_t* descrp = (ble_descrp_t*)value;
+				esp_ble_gatts_add_char_descr( service->mHandle, descrp->mDescr_uuid, descrp->mPerm, descrp->mAtt, &descrp->mRsp);
+				_wait(isJobDone);
+				descrp->mhandle = _mHandlerContainer;
+		);
+		);
+		);
+		);
+	 }
+	 ESP_LOGI("activateProfiles", "completed\n\n");
 }
 
 
@@ -241,35 +275,9 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 	switch (event)
 	{
 		case ESP_GATTS_REG_EVT: /*!< When register application id, the event comes */
-		{
 			ESP_LOGI(TAG, "ESP_GATTS_REG_EVT");
-			ble_profile_t* profile = (void*)0;
-			// tail is the starting node of the list
-			uNode_t *profileNode = mDeviceHandler->mProfileList->tail;
-			while (profileNode)
-			{
-				profile = (ble_profile_t*)profileNode->value;
-				ESP_LOGI(TAG, "Profile ID %d", profile->mId);
-				if(param->reg.app_id == profile->mId)
-				{
-					ESP_LOGI(TAG, "Found profile index. setting gatts if");
-					profile->mGatt_if = gatts_if;
-					ESP_LOGI(TAG, "profile->mGatt_if %d, gatts_if %d\n", profile->mGatt_if, gatts_if);
-					ble_service_t * service = NULL;
-					uNode_t *serviceNode =  profile->mServiceList->tail;
-					while (serviceNode)
-					{
-						/* code */
-						service = (ble_service_t*) serviceNode->value;
-						ESP_LOGI(TAG, "Adding services to profile %d", profile->mId );
-						esp_ble_gatts_create_service(profile->mGatt_if, service->mService_id, service->mNumHandle);
-						serviceNode = serviceNode->nextNode;
-					}
-				}
-				// go to next node
-				profileNode = profileNode->nextNode;
-			}
-		}
+			_mHandlerContainer = gatts_if;
+			isJobDone = 1;
 			break;
 		case ESP_GATTS_READ_EVT:			/*!< When gatt client request read operation, the event comes */
 			//ESP_LOGI(TAG, "ESP_GATTS_READ_EVT");
@@ -337,144 +345,32 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 			ESP_LOGI(TAG, "ESP_GATTS_UNREG_EVT");
 			break;
 		case ESP_GATTS_CREATE_EVT:                     /*!< When create service complete, the event comes */
-		{
 			ESP_LOGI(TAG, "CREATE_SERVICE_EVT, status %d, service_handle %d\n", param->create.status, param->create.service_handle);
-
-			ble_profile_t* profile = (void*)0;
-			uNode_t* profileNode = mDeviceHandler->mProfileList->tail;
-			while (profileNode)
-			{
-				/* code */
-				profile = (ble_profile_t*)profileNode->value;
-				ESP_LOGI(TAG, "profile->mGatt_if %d, gatts_if %d\n", profile->mGatt_if, gatts_if);
-				if(profile->mGatt_if == gatts_if)
-				{
-					ble_service_t* service = (void*)0;
-					uNode_t * serviceNode = profile->mServiceList->tail;
-					while (serviceNode)
-					{
-						/* code */
-						service = (ble_service_t*)serviceNode->value;
-						if(memcmp((void*)&service->mService_id->id.uuid.uuid,
-								(void*)&param->create.service_id.id.uuid.uuid,
-								service->mService_id->id.uuid.len) == 0 )
-						{
-							service->mHandle = param->create.service_handle;
-							esp_ble_gatts_start_service(service->mHandle);
-							ble_char_t* ch = (void*)0;
-							uNode_t * charNode = service->mCharList->tail;
-							while(charNode)
-							{
-								ch = (ble_char_t*)charNode->value;
-								esp_ble_gatts_add_char(service->mHandle, ch->mChar_uuid, ch->mPerm, ch->mProperty,ch->mAtt, &ch->mRsp);
-								charNode = charNode->nextNode;
-							}
-						}
-						serviceNode = serviceNode->nextNode;
-					}
-				}
-				profileNode = profileNode->nextNode;
-			}
-		}
+			_mHandlerContainer = param->create.service_handle;	
+			isJobDone = 1;
+			esp_ble_gatts_start_service(param->create.service_handle);
 			break;
 		case ESP_GATTS_ADD_INCL_SRVC_EVT:              /*!< When add included service complete, the event comes */
 			ESP_LOGI(TAG, "ESP_GATTS_ADD_INCL_SRVC_EVT");
 			break;
 		case ESP_GATTS_ADD_CHAR_EVT:                   /*!< When add characteristic complete, the event comes */
-		{
-			ESP_LOGI(TAG, "ESP_GATTS_ADD_CHAR_EVT.\r\nSerive Handle: %d\r\n", param->add_char.service_handle);
+			ESP_LOGI(TAG, "ESP_GATTS_ADD_CHAR_EVT. Serive Handle: %d", param->add_char.service_handle);
 			uint16_t length = 0;
-		    const uint8_t *prf_char;
+			const uint8_t *prf_char;
 			esp_err_t get_attr_ret = esp_ble_gatts_get_attr_value(param->add_char.attr_handle, &length, &prf_char);
 			if (get_attr_ret == ESP_FAIL)
 			{
 			   ESP_LOGE(TAG, "ILLEGAL HANDLE");
 			}
-			ble_profile_t* profile = (void*)0;
-			uNode_t * profileNode = mDeviceHandler->mProfileList->tail;
-			while (profileNode)
-			{
-				/* code */
-				profile = (ble_profile_t*)profileNode->value;
-				if(profile->mGatt_if == gatts_if)
-				{
-					ble_service_t* service = (void*)0;
-					uNode_t * serviceNode = profile->mServiceList->tail;
-					while (serviceNode)
-					{
-						/* code */
-						service = (ble_service_t*)serviceNode->value;
-						if(service->mHandle == param->add_char.service_handle)
-						{
-							ble_char_t* characteristic = (void*)0;
-							uNode_t * charNode = service->mCharList->tail;
-							while (charNode)
-							{
-								/* code */
-								characteristic = (ble_char_t*) charNode->value; 
-								if(memcmp((void*)&characteristic->mChar_uuid->uuid,
-									(void*)&param->add_char.char_uuid.uuid,
-									characteristic->mChar_uuid->len) == 0 )
-								{
-									characteristic->mhandle = param->add_char.attr_handle;
-									ESP_LOGI(TAG, "Found char.Assigned handle id: %d\r\n", characteristic->mhandle);
-									ble_descrp_t* descrp = (void*)0;
-									uNode_t *descrpNode = characteristic->mDescrList->tail;
-									while (descrpNode)
-									{
-										/* code */
-										descrp = (ble_descrp_t*) descrpNode->value;
-										esp_err_t add_descr_ret = esp_ble_gatts_add_char_descr( service->mHandle,  descrp->mDescr_uuid,
-										            											descrp->mPerm, descrp->mAtt, &descrp->mRsp);
-										 if (add_descr_ret)
-										 {
-											ESP_LOGE(TAG, "add char descr failed, error code = %x", add_descr_ret);
-										 }
-										descrpNode = descrpNode->nextNode;
-									}
-								}
-								charNode = charNode->nextNode;
-							}
-						}
-						serviceNode = serviceNode->nextNode;
-					}
-				}
-				profileNode = profileNode->nextNode;
-			}
-		}
+			_mHandlerContainer = param->add_char.attr_handle;
+			isJobDone = 1;
 			break;
 		case ESP_GATTS_ADD_CHAR_DESCR_EVT:            /*!< When add descriptor complete, the event comes */
-		{
 			ESP_LOGI(TAG, "ADD_DESCR_EVT, status %d, attr_handle %d, service_handle %d\n",
 			                  param->add_char_descr.status, param->add_char_descr.attr_handle,
 			                  param->add_char_descr.service_handle);
-			void* value = NULL;
-			uint16_t len;
-			ITERATE_LIST(mDeviceHandler->mProfileList, value, len, 
-			ble_profile_t* profile = (ble_profile_t*)value;
-				if(profile->mGatt_if == gatts_if)
-				{
-					ITERATE_LIST(profile->mServiceList, value, len, 
-						ble_service_t* service = (ble_service_t*)value;
-							ITERATE_LIST(service->mCharList, value, len,
-								ble_char_t* characteristic = (ble_char_t*)value;
-								ITERATE_LIST(characteristic->mDescrList, value, len, 
-									ble_descrp_t* descrp = (ble_descrp_t*)value;
-									if(memcmp((void*)&descrp->mDescr_uuid->uuid,
-									(void*)&param->add_char_descr.descr_uuid.uuid,
-									descrp->mDescr_uuid->len) == 0 )
-									{
-									   ESP_LOGI(TAG, "Found Description\n");
-									   descrp->mhandle = param->add_char_descr.attr_handle;
-									}
-									
-								);
-
-							);
-						);
-				}
-			);
-		}
+			_mHandlerContainer = param->add_char_descr.attr_handle;
+			isJobDone = 1;
 			break;
 		case ESP_GATTS_DELETE_EVT:                    /*!< When delete service complete, the event comes */
 			ESP_LOGI(TAG, "ESP_GATTS_DELETE_EVT");

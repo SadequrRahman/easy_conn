@@ -30,7 +30,7 @@ typedef struct
 }ble_eventParam_t;
 
 // char callbacks
-typedef void(*writeEvent_t)(void* value, uint16_t len);
+typedef void(*writeEvent_t)(uint8_t* value, uint16_t len);
 typedef void(*readEvent_t)(ble_eventParam_t param);
 
 //profiles
@@ -43,14 +43,14 @@ typedef struct {
 } ble_profile_t;
 
 typedef struct {
-	uint16_t mServiceHandle;
+	uint16_t mHandle;
 	uint8_t mNumHandle;
 	esp_gatt_srvc_id_t *mService_id;
 	uList_t *mCharList;
 } ble_service_t;
 
 typedef struct {
-	uint16_t mChar_handle;
+	uint16_t mhandle;
 	esp_bt_uuid_t *mChar_uuid;
 	esp_gatt_perm_t mPerm;
 	esp_gatt_char_prop_t mProperty;
@@ -62,11 +62,13 @@ typedef struct {
 } ble_char_t;
 
 typedef struct {
-	uint16_t mDescr_handle;
+	uint16_t mhandle;
 	esp_bt_uuid_t *mDescr_uuid;
 	esp_attr_value_t *mAtt;
 	esp_gatt_perm_t mPerm;
 	esp_attr_control_t mRsp;
+	writeEvent_t mWriteEvent;
+	uint16_t mAssociate_char_handle;
 } ble_descrp_t;
 
 

@@ -20,18 +20,10 @@
 #include "esp_gatt_common_api.h"
 #include "uList.h"
 
-typedef struct
-{
-	uint16_t mConn_id;          /*!< Connection id */
-	uint16_t mGatts_if;			/*!< gatt interface id */
-	uint32_t mTrans_id;         /*!< Transfer id */
-	uint16_t mOffset;           /*!< Offset of the value, if the value is too long */
-	bool mIsLong;              /*!< The value is too long or not */
-}ble_eventParam_t;
 
 // char callbacks
-typedef void(*writeEvent_t)(uint8_t* value, uint16_t len);
-typedef void(*readEvent_t)(ble_eventParam_t param);
+typedef void(*writeEvent_t)(esp_ble_gatts_cb_param_t* param);
+typedef void(*readEvent_t)(esp_ble_gatts_cb_param_t* param);
 
 //profiles
 typedef struct {
@@ -59,6 +51,8 @@ typedef struct {
 	uList_t *mDescrList;
 	writeEvent_t mWriteEvent;
 	readEvent_t mReadEvent;
+	uint16_t mAssociateService_handle;
+	uint32_t mTrans_id;
 } ble_char_t;
 
 typedef struct {
@@ -68,7 +62,9 @@ typedef struct {
 	esp_gatt_perm_t mPerm;
 	esp_attr_control_t mRsp;
 	writeEvent_t mWriteEvent;
-	uint16_t mAssociate_char_handle;
+	readEvent_t mReadEvent;
+	uint16_t mAssociateChar_handle;
+	uint32_t mTrans_id;
 } ble_descrp_t;
 
 

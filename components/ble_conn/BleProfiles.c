@@ -46,7 +46,7 @@ ble_service_t* BleProfiles_createService(uint8_t *uuid, uint8_t len, uint8_t nHa
 	ns->mCharList = uList_createList();
 	ns->mService_id = (esp_gatt_srvc_id_t*) malloc(sizeof(esp_gatt_srvc_id_t));
 	memset((void*)ns->mService_id, 0 , sizeof(esp_gatt_srvc_id_t));
-	memcpy((void*)ns->mService_id->id.uuid.uuid.uuid128,(void*)uuid, len);
+	memcpy((void*)&ns->mService_id->id.uuid.uuid,(void*)uuid, len);
 	ns->mService_id->id.uuid.len = len;
 	ns->mService_id->is_primary = isPrimary;
 	ns->mNumHandle = nHandle;
@@ -62,7 +62,7 @@ ble_char_t* BleProfiles_createCharacteristic(uint8_t *uuid, uint8_t len, uint8_t
 	memset((void*)id, 0 , sizeof(esp_bt_uuid_t));
 	ch->mDescrList = uList_createList();
 	id->len = len;
-	memcpy((void*)id->uuid.uuid128, (void*)uuid, len);
+	memcpy((void*)&id->uuid, (void*)uuid, len);
 	ch->mChar_uuid = id;
 	ch->mRsp.auto_rsp = autoRsp;
 	ch->mReadEvent = NULL;
@@ -112,7 +112,7 @@ ble_descrp_t* BleProfiles_createDescription(uint8_t *uuid, uint8_t uuidLen, uint
 	memset((void*)ds, 0, sizeof(ble_descrp_t));
 	memset((void*)id, 0 , sizeof(esp_bt_uuid_t));
 	id->len = uuidLen;
-	memcpy((void*)id->uuid.uuid128, (void*)uuid, id->len);
+	memcpy((void*)&id->uuid, (void*)uuid, id->len);
 	ds->mRsp.auto_rsp = autoRsp;
 	ds->mDescr_uuid = id;
 	return ds;

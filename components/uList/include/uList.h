@@ -61,6 +61,7 @@ typedef struct
 do {                                            \
     if (list) {                                 \
        uNode_t *node = list->tail;              \
+       len = 0;                                 \
        while (node)                             \
       {                                         \
          value = node->value;                   \

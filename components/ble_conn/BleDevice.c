@@ -10,15 +10,12 @@
 #include "BleDevice.h"
 #include "BleProfiles.h"
 #include "freertos/task.h"
-
-
-#define _wait(flag)	do{											\
-						vTaskDelay( 50 / portTICK_PERIOD_MS);	\
-					}while(!flag)									
+#include "freertos/timers.h"
 
 
 // private function
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
+void vTimeoutCallback(TimerHandle_t xTimer);
 static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 static uint8_t defaultAdvUUID128[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x89, 0x78, 0x67, 0x56, 0x45, 0x34, 0x23, 0x12 };
 
@@ -27,9 +24,17 @@ static volatile uint16_t _mHandlerContainer = 0;
 static volatile uint8_t isJobDone = 0;
 static const char *TAG = "BleDevice";
 static bleDevice_handler_t *mDeviceHandler = NULL;
+TimerHandle_t mTimeoutTimer;
+const uint32_t ulMaxExpiryCountBeforeStopping = 100;
 
-
-
+#define _wait(flag)	(xTimerStart(mTimeoutTimer, 0));                                                             \
+                    do{											                                            \
+						vTaskDelay( 25 / portTICK_PERIOD_MS);	                                            \
+                        if(((uint32_t) pvTimerGetTimerID(mTimeoutTimer) )>=ulMaxExpiryCountBeforeStopping){   \
+                            xTimerDelete(mTimeoutTimer, 0);                                                    \
+                            return ESP_ERR_TIMEOUT;}                                                        \
+					}while(!flag);                                                                          \
+                    xTimerStop(mTimeoutTimer, 0)
 
 void BleDevice_init(bleDevice_config_t *config)
 {
@@ -165,10 +170,21 @@ void BleDevice_addProfile(ble_profile_t* pProfile)
 
 }
 
-void BleDevice_activateProfiles(void)
+esp_err_t BleDevice_activateProfiles(void)
 {
 	if(mDeviceHandler)
  	{
+        mTimeoutTimer = xTimerCreate
+                   ( "Timer",/* Just a text name, not used by the RTOS kernel. */
+                     ( 100 *  2) + 100, /* The timer period in ticks, must be greater than 0. */
+                     pdTRUE, /* The timers will auto-reload themselves when they expire. */
+                     ( void * ) 0, /* The ID is used to store a count of the number of times the timer has expired, which is initialised to 0. */
+                     vTimeoutCallback /* Each timer calls the same callback when it expires. */
+                   );
+        if(mTimeoutTimer == NULL)
+        {
+            return ESP_ERR_TIMEOUT;
+        }
 		void* value = NULL;
 		uint16_t len;
 		ITERATE_LIST(mDeviceHandler->mProfileList, value, len, 
@@ -202,6 +218,8 @@ void BleDevice_activateProfiles(void)
 		);
 		);
 	 }
+     xTimerDelete(mTimeoutTimer, 0);
+     return ESP_OK;
 }
 
 
@@ -272,7 +290,7 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 			isJobDone = 1;
 			break;
 		case ESP_GATTS_READ_EVT:			/*!< When gatt client request read operation, the event comes */
-			ESP_LOGI(TAG, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
+			ESP_LOGI(TAG, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", (int) param->read.conn_id, (int) param->read.trans_id, (int) param->read.handle);
 			bool isFound = false;
 			void* value = NULL;
 			uint16_t len;
@@ -468,5 +486,29 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
 
 }
 
+void vTimeoutCallback(TimerHandle_t xTimer)
+{
+    uint32_t ulCount;
+    (void) ( xTimer );
 
+    /* The number of times this timer has expired is saved as the
+    timer's ID.  Obtain the count. */
+    ulCount = ( uint32_t ) pvTimerGetTimerID( xTimer );
+    /* If the timer has expired 10 times then stop it from running. */
+    if( ulCount >= ulMaxExpiryCountBeforeStopping )
+    {
+        /* Do not use a block time if calling a timer API function
+        from a timer callback function, as doing so could cause a
+        deadlock! */
+        xTimerStop( xTimer, 0 );
+        xTimerDelete(xTimer, 0);
+    }
+    else
+    {
+       /* Store the incremented count back into the timer's ID field
+       so it can be read back again the next time this software timer
+       expires. */
+       vTimerSetTimerID( xTimer, ( void * ) ulCount );
+    }
+}
 

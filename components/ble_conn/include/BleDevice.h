@@ -69,7 +69,7 @@ uint8_t BleDevice_getProfileCount(void);
 void BleDevice_addProfile(ble_profile_t* pProfile);
 
 // to activate all profile after configuring service and characteristics
-void BleDevice_activateProfiles(void);
+esp_err_t BleDevice_activateProfiles(void);
 
 
 

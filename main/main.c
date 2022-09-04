@@ -89,8 +89,13 @@ void app_main(void){
     BleProfiles_addDescription(character,description);
 	BleProfiles_addCharacteristic(service, character1);
 	BleProfiles_addCharacteristic(service, character2);
-	BleDevice_activateProfiles();
-	xTaskCreate(notificationTask, "notificationTask", 1024 * 4, NULL, 5, NULL);
+    esp_err_t rt = BleDevice_activateProfiles();
+	if( rt == ESP_ERR_TIMEOUT)
+         ESP_LOGI(TAG, "ble activation timeout\r\n");
+    else if(rt != ESP_OK)
+        ESP_LOGI(TAG, "ble activation eror code: %d\r\n", (int)rt);
+    else
+        xTaskCreate(notificationTask, "notificationTask", 1024 * 4, NULL, 5, NULL);
 }
 
 

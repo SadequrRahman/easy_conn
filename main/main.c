@@ -82,7 +82,7 @@ void app_main(void){
     description = BleProfiles_createDescription((uint8_t*)&DES_UUID, ESP_UUID_LEN_16, ESP_GATT_AUTO_RSP);
 	BleProfiles_setDescriptionPermission(description,  ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE );
 	BleProfile_setDescriptionValue(description, (uint8_t*)&desValue, 0 , 0x40);
-	description->mWriteEvent = descrp_write_handler;
+	description->mWriteEvent = NULL;//descrp_write_handler;
 	
 
 	BleProfiles_addCharacteristic(service, character);

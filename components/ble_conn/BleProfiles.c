@@ -156,12 +156,12 @@ void BleProfiles_setReadCallback(ble_char_t *charactersitic, readEvent_t callbac
 	
 }
 
-void BleProfile_prepareLongRsp(esp_gatt_rsp_t *rsp, uint8_t *value, uint16_t offset)
+void BleProfile_prepareLongRsp(esp_gatt_rsp_t *rsp, uint8_t *value, uint16_t val_len, uint16_t offset)
 {
 	if(rsp)
 	{
-		rsp->attr_value.len = sizeof(value) - 1 - offset;
+		rsp->attr_value.len = val_len - 1 - offset;
 		rsp->attr_value.offset = offset;
-		memcpy(rsp->attr_value.value, &value[offset], rsp->attr_value.len);
+		memcpy( (void*)rsp->attr_value.value, (void*)&value[offset], rsp->attr_value.len);
 	}
 }

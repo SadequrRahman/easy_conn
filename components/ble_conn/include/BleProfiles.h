@@ -71,6 +71,8 @@ typedef struct {
 	writeEvent_t mWriteEvent;
 	readEvent_t mReadEvent;
 	uint16_t mAssociateChar_handle;
+    uint8_t mNotifyKey;
+    bool mIsConfirmNeeded;
 	ble_prepare_t mPrepareObj;
 } ble_descrp_t;
 
@@ -94,7 +96,7 @@ void BleProfiles_addDescription(ble_char_t *charactersitic, ble_descrp_t *ds);
 void BleProfiles_setReadCallback(ble_char_t *charactersitic, readEvent_t callback);
 
 
-void BleProfile_prepareLongRsp(esp_gatt_rsp_t *rsp, uint8_t *value, uint16_t offset);
+void BleProfile_prepareLongRsp(esp_gatt_rsp_t *rsp, uint8_t *value, uint16_t val_len, uint16_t offset);
 
 
 #endif /* INC_BLEPROFILES_H_ */

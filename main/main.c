@@ -103,32 +103,32 @@ void app_main(void){
 void notificationTask(void* pvParam)
 {
 	while (true){
-		cnt++;
+		
 		if(description){
-			
-			if(ni_key == 1)
-				esp_ble_gatts_send_indicate(profile->mGatt_if, profile->mConn_id, character->mhandle, sizeof(cnt), (uint8_t*)&cnt, isConfirm_needed);
-			else if(ni_key == 2)
-				esp_ble_gatts_send_indicate(profile->mGatt_if, profile->mConn_id, character->mhandle, sizeof(cnt), (uint8_t*)&cnt, isConfirm_needed);
+            cnt++;
+			if(description->mNotifyKey == 1)
+				esp_ble_gatts_send_indicate(profile->mGatt_if, profile->mConn_id, character->mhandle, sizeof(cnt), (uint8_t*)&cnt, description->mIsConfirmNeeded);
+			else if(description->mNotifyKey == 2)
+				esp_ble_gatts_send_indicate(profile->mGatt_if, profile->mConn_id, character->mhandle, sizeof(cnt), (uint8_t*)&cnt, description->mIsConfirmNeeded);
 		}
-		vTaskDelay(500 / portTICK_PERIOD_MS);
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
 }
 
 
 void descrp_write_handler(esp_ble_gatts_cb_param_t* param)
 {
-	uint16_t descr_value= param->write.value[1]<<8 | param->write.value[0];
+	uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
 	if(descr_value == 0x0001){ // enable notification
-		ni_key = 1;
-		isConfirm_needed = false;
+		description->mNotifyKey = 1;
+		description->mIsConfirmNeeded = false;
 	}
 	else if (descr_value == 0x0002){ // enable indication
-		ni_key = 2;
-		isConfirm_needed = true;
+		description->mNotifyKey = 2;
+		description->mIsConfirmNeeded = true;
 	}
 	else if (descr_value == 0x0000) // disable indication or notification.
-		ni_key = 0;
+		description->mNotifyKey = 0;
 }
 
 
@@ -136,13 +136,12 @@ void char2ReadCallback(esp_ble_gatts_cb_param_t* param)
 {
 	// in gatts callback
 	esp_gatt_rsp_t response;
-	ESP_LOGI(TAG, "char2ReadCallback");
 	response.handle = param->read.handle;
-	BleProfile_prepareLongRsp(&response, test_string, param->read.offset);
+	BleProfile_prepareLongRsp(&response, test_string, strlen((const char*)test_string), param->read.offset);
 	esp_ble_gatts_send_response(profile->mGatt_if, param->read.conn_id, param->read.trans_id, ESP_GATT_OK, &response);
 }
 
 void cha2WriteCallback(esp_ble_gatts_cb_param_t* param)
 {
-
+    ESP_LOGI(TAG, "Write event");
 }
